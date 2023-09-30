@@ -33,7 +33,7 @@ pip install -r requirements.txt
 
 ## Extensions
 
-Plans to fine-tune GPT-4 for a climbing Q&A bot. Associated costs: $400.
+Plans to fine-tune LLMs for a climbing Q&A bot.
 
 ## Contributions
 
