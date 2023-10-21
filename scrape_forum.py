@@ -25,19 +25,30 @@ def get_post_urls(base, num_pages):
 
 def get_messages_from_thread(thread_url):
     # get all posts from thread  
-    page = urlopen(thread_url).read()
-    soup = BeautifulSoup(page, 'html.parser')
-    title = soup.find('h1').get_text()
+    try:
+        page = urlopen(thread_url).read()
+        soup = BeautifulSoup(page, 'html.parser')
+        title = soup.find('h1').get_text()
 
-    messages = soup.find_all('tr')
-    pagination = soup.find('div', class_='pagination').find_all('a')
+        messages = soup.find_all('tr')
+        pagination = soup.find('div', class_='pagination').find_all('a')
+    except Exception as e:
+        pagination = []
+        messages = []
+        title = ''
+        print(e)
+        pass
     # if there is more than one page, get the rest of the messages on each page
     if len(pagination) > 1:
         num_pages = int(pagination[2].get_text().strip().split(' ')[-1])
         for i in range(2, num_pages + 1):
-            page = urlopen(thread_url + '?page=' + str(i)).read()
-            soup = BeautifulSoup(page, 'html.parser')
-            messages.extend(soup.find_all('tr'))
+            try: 
+                page = urlopen(thread_url + '?page=' + str(i)).read()
+                soup = BeautifulSoup(page, 'html.parser')
+                messages.extend(soup.find_all('tr'))
+            except Exception as e:
+                print(e)
+                pass
 
     return messages, title
 
@@ -89,15 +100,20 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--forum_name', help='name of forum to scrape')
     # argument for num_pages, int
     parser.add_argument('-n', '--num_pages', type=int, help='number of pages to scrape')
+    # warm start argument
+    parser.add_argument('-w', '--warm_start', type=bool, default=False, help='whether to start from forum thread urls already scraped')
     args = parser.parse_args()
     # form base url
     base = "https://www.mountainproject.com/forum/" + str(args.forum_name)
     num_pages = args.num_pages
     # get all post urls
-    forum_post_urls = get_post_urls(base, num_pages)
-
-    pickle_dump(forum_post_urls, f'{args.forum_name.split("/")[-1]}_urls.pkl')
-    print("Dumped Thread urls to pickle file")
+    if not args.warm_start:
+        forum_post_urls = get_post_urls(base, num_pages)
+        pickle_dump(forum_post_urls, f'{args.forum_name.split("/")[-1]}_urls')
+        print("Dumped Thread urls to pickle file")
+    else:
+        forum_post_urls = pickle_load(f'{args.forum_name.split("/")[-1]}_urls')
+        print("Loaded Thread urls from pickle file")
 
     df = []
     for i, thread_url in enumerate(forum_post_urls):      

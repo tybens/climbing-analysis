@@ -6,5 +6,5 @@ def pickle_dump(obj, filename):
 
 
 def pickle_load(filename):
-    with open('data/' + filename, 'rb') as f:
+    with open('data/' + filename + '.pickle', 'rb') as f:
         return pickle.load(f)
