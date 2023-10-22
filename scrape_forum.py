@@ -104,16 +104,25 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--warm_start', type=bool, default=False, help='whether to start from forum thread urls already scraped')
     args = parser.parse_args()
     # form base url
-    base = "https://www.mountainproject.com/forum/" + str(args.forum_name)
-    num_pages = args.num_pages
+    BASE = "https://www.mountainproject.com/forum/" + str(args.forum_name)
+    NUM_PAGES = args.num_pages
+    FORUM_NAME_STR = args.forum_name.split("/")[-1]
+    COLUMNS = ['post_id', 'date', 'username', 'body', 'num_likes', 'location', 'joined', 'points', 'clubs','title']
+
     # get all post urls
     if not args.warm_start:
-        forum_post_urls = get_post_urls(base, num_pages)
-        pickle_dump(forum_post_urls, f'{args.forum_name.split("/")[-1]}_urls')
+        forum_post_urls = get_post_urls(BASE, NUM_PAGES)
+        pickle_dump(forum_post_urls, f'{FORUM_NAME_STR}_urls')
         print("Dumped Thread urls to pickle file")
     else:
-        forum_post_urls = pickle_load(f'{args.forum_name.split("/")[-1]}_urls')
+        forum_post_urls = pickle_load(f'{FORUM_NAME_STR}_urls')
         print("Loaded Thread urls from pickle file")
+
+    # initialize temporary csv file and write the columns to, name it using a randint
+    TEMP_FILE_NAME = f'data/{FORUM_NAME_STR}_temp_{np.random.randint(100000)}.csv'
+    with open(TEMP_FILE_NAME, 'w') as f:
+        f.write(','.join(COLUMNS) + '\n')
+    
 
     df = []
     for i, thread_url in enumerate(forum_post_urls):      
@@ -121,24 +130,31 @@ if __name__ == '__main__':
         print(f"Scraping thread {i+1} of {len(forum_post_urls)}")
         messages, title = get_messages_from_thread(thread_url)
         print(f"Found {len(messages)} messages in thread")
+        new_data = []
         for message in messages:
             try:
                 column = get_data_from_message(message)
                 column.append(title)
-                df.append(column)
+                new_data.append(column)
             except Exception as e:
                 print(e)
                 pass
 
+        df.extend(new_data)
+        # write raw df to temporary csv file using open
+        with open(TEMP_FILE_NAME, 'a') as f:
+            for row in new_data:
+                f.write(','.join(row) + '\n')
+        print(f"Dumped {len(new_data)} rows to temporary csv file")
 
 
 
-    columns = ['post_id', 'date', 'username', 'body', 'num_likes', 'location', 'joined', 'points', 'clubs','title']
-    df = pd.DataFrame(df, columns=columns)
+
+    df = pd.DataFrame(df, columns=COLUMNS)
     df.loc[:, 'body'] = df.body.apply(lambda x: x.replace('\n', ''))
     days_ago = df.date[['days' in i for i in df.date.values]]
     if len(days_ago):
         df.date[['days' in i for i in df.date.values]] = pd.to_numeric(days_ago.str[0]).apply(subtract_days_from_current)
     df['mean_word_length'] = df.body.map(lambda rev: np.mean([len(word) for word in rev.split()]))
 
-    df.to_csv(f'data/{args.forum_name.split("/")[-1]}.csv', index=False)
+    df.to_csv(f'data/{FORUM_NAME_STR}.csv', index=False)
