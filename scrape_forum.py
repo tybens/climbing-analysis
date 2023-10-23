@@ -2,12 +2,15 @@ from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 import pandas as pd
 import numpy as np
+import csv
+from nltk import tokenize
 
 from bs4 import BeautifulSoup
 
 import argparse
 from utils import pickle_load, pickle_dump 
 
+    
 def get_post_urls(base, num_pages):
     forum_post_urls = []
     ext = "?page="
@@ -94,6 +97,51 @@ def subtract_days_from_current(x):
     
     return formatted_date
 
+def clean_and_generate_df(data, COLUMNS):
+    df = pd.DataFrame(data, columns=COLUMNS)
+    # --- cleaning body ---
+    df.loc[:, 'body'] = df.body.str.replace('\n', '').str.replace('\xa0', '').str.strip()
+    df = df[df.body.str.len() > 0]
+    # --- cleaning date ---
+    days_ago = df.date[['day' in i for i in df.date.values]]
+    if len(days_ago):
+        df.date[['day' in i for i in df.date.values]] = pd.to_numeric(days_ago.str[0]).apply(subtract_days_from_current)
+    df.date[df.date.str.contains('ago')] = [datetime.date.today().strftime("%b %d, %Y") for _ in df.date[df.date.str.contains('ago')]]
+    df.date = pd.to_datetime(df.date)
+    # --- typeing --- 
+    df['points'] = df['points'].str[-1].astype(int)
+    df.num_likes.replace('post removed', 0, inplace=True)
+    df.num_likes = df.num_likes.astype(int) 
+    df.body = df.body.astype(str)
+    # --- adding columns --- 
+    df['mean_word_length'] = df.body.map(lambda rev: np.mean([len(word) for word in rev.split()]))
+    df['mean_sent_length'] = df.body.map(lambda text: np.mean([len(tokenize.word_tokenize(sent)) for sent in tokenize.sent_tokenize(text)]))
+    df['word_count'] = df.body.map(lambda text: len(tokenize.word_tokenize(text)))
+    # --- dealing with NaNs ---
+    df.clubs.fillna('', inplace=True)   
+    df.title.fillna('', inplace=True)
+    
+
+
+    return df
+
+# --- HELPER FUNCTIONS --- #
+
+def load_and_concatenate_temp_data(base, files):
+    """
+    Loads all temporary csv files and concatenates them into a dataframe.
+    """
+    data = pd.DataFrame()
+    for file in files:
+        new_data = pd.read_csv(base + '_temp_' + file + '.csv')
+        data = pd.concat([data, new_data], axis=0)
+
+    # clean the raw, concatenated data and generate a dataframe
+    COLUMNS = ['post_id', 'date', 'username', 'body', 'num_likes', 'location', 'joined', 'points', 'clubs','title']
+    df = clean_and_generate_df(data, COLUMNS)
+    return df
+
+
 if __name__ == '__main__':
     # extract argument from command line for forum_name using argparse
     parser = argparse.ArgumentParser()
@@ -102,6 +150,8 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--num_pages', type=int, help='number of pages to scrape')
     # warm start argument
     parser.add_argument('-w', '--warm_start', type=bool, default=False, help='whether to start from forum thread urls already scraped')
+    parser.add_argument('-t', '--thread_start', type=int, default=0, help='Which forum thread url to start from.')
+
     args = parser.parse_args()
     # form base url
     BASE = "https://www.mountainproject.com/forum/" + str(args.forum_name)
@@ -119,15 +169,15 @@ if __name__ == '__main__':
         print("Loaded Thread urls from pickle file")
 
     # initialize temporary csv file and write the columns to, name it using a randint
-    TEMP_FILE_NAME = f'data/{FORUM_NAME_STR}_temp_{np.random.randint(100000)}.csv'
+    TEMP_FILE_NAME = f'data/temp/{FORUM_NAME_STR}_temp_{np.random.randint(100000)}.csv'
     with open(TEMP_FILE_NAME, 'w') as f:
         f.write(','.join(COLUMNS) + '\n')
     
 
     df = []
-    for i, thread_url in enumerate(forum_post_urls):      
+    for i, thread_url in enumerate(forum_post_urls[args.thread_start:]):      
         # get all messages from thread  
-        print(f"Scraping thread {i+1} of {len(forum_post_urls)}")
+        print(f"Scraping thread {i+1 + args.thread_start} of {len(forum_post_urls)}")
         messages, title = get_messages_from_thread(thread_url)
         print(f"Found {len(messages)} messages in thread")
         new_data = []
@@ -142,19 +192,15 @@ if __name__ == '__main__':
 
         df.extend(new_data)
         # write raw df to temporary csv file using open
-        with open(TEMP_FILE_NAME, 'a') as f:
+        with open(TEMP_FILE_NAME, 'a', newline='') as f:
+            csv_writer = csv.writer(f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             for row in new_data:
-                f.write(','.join(row) + '\n')
+                csv_writer.writerow(row)
         print(f"Dumped {len(new_data)} rows to temporary csv file")
 
 
 
 
-    df = pd.DataFrame(df, columns=COLUMNS)
-    df.loc[:, 'body'] = df.body.apply(lambda x: x.replace('\n', ''))
-    days_ago = df.date[['days' in i for i in df.date.values]]
-    if len(days_ago):
-        df.date[['days' in i for i in df.date.values]] = pd.to_numeric(days_ago.str[0]).apply(subtract_days_from_current)
-    df['mean_word_length'] = df.body.map(lambda rev: np.mean([len(word) for word in rev.split()]))
-
+    
+    df = clean_and_generate_df(df, COLUMNS)
     df.to_csv(f'data/{FORUM_NAME_STR}.csv', index=False)
