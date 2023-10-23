@@ -120,7 +120,7 @@ def clean_and_generate_df(data, COLUMNS):
     # --- dealing with NaNs ---
     df.clubs.fillna('', inplace=True)   
     df.title.fillna('', inplace=True)
-    
+    df.dropna(axis=0, inplace=True)
 
 
     return df
