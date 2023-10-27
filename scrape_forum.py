@@ -64,6 +64,10 @@ def get_data_from_message(message):
     post_id = thread_url.split('/')[-2]
     date = info[0] 
     username = bio.find('strong').text
+    try:
+        user_id = '/'.join(bio.find('strong').parent.get('href').split('/')[-2:])
+    except:
+        user_id = ''
     body = message.find('div', class_='fr-view').text
     try:
         num_likes = message.find('span', class_='num-likes').text.replace('\n', '').strip()
@@ -80,7 +84,7 @@ def get_data_from_message(message):
         clubs.append(club.img.get('title'))
     clubs_str = ', '.join(clubs)
 
-    column = [post_id, date, username, body, num_likes, location, joined, points, clubs_str]
+    column = [post_id, date, username, user_id, body, num_likes, location, joined, points, clubs_str]
     return column
 
 
@@ -137,7 +141,7 @@ def load_and_concatenate_temp_data(base, files):
         data = pd.concat([data, new_data], axis=0)
 
     # clean the raw, concatenated data and generate a dataframe
-    COLUMNS = ['post_id', 'date', 'username', 'body', 'num_likes', 'location', 'joined', 'points', 'clubs','title']
+    COLUMNS = ['post_id', 'date', 'username', 'user_id', 'body', 'num_likes', 'location', 'joined', 'points', 'clubs','title']
     df = clean_and_generate_df(data, COLUMNS)
     return df
 
@@ -157,7 +161,7 @@ if __name__ == '__main__':
     BASE = "https://www.mountainproject.com/forum/" + str(args.forum_name)
     NUM_PAGES = args.num_pages
     FORUM_NAME_STR = args.forum_name.split("/")[-1]
-    COLUMNS = ['post_id', 'date', 'username', 'body', 'num_likes', 'location', 'joined', 'points', 'clubs','title']
+    COLUMNS = ['post_id', 'date', 'username', 'user_id', 'body', 'num_likes', 'location', 'joined', 'points', 'clubs','title']
 
     # get all post urls
     if not args.warm_start:
