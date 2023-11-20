@@ -44,12 +44,13 @@ def get_comments_on_route(route_id):
     for row in rows:
         body = row.find('div', class_='comment-body').text.strip()
         bio = row.find('div', class_='bio')
-        user_id = bio.a.get('href').split('/')[-1]
+        user_id = bio.a.get('href').split('/')[-2]
+        username_id = bio.a.get('href').split('/')[-1]
         username = bio.a.text.strip()
         # get username, hometown, user_id, ...
         hometown = bio.find('span').text.strip()
 
-        comment = {'user_id': user_id, 'username': username,'body': body,'hometown': hometown}
+        comment = {'user_id': user_id, 'username_id': username_id, 'username': username,'body': body,'hometown': hometown}
         comments.append(comment)
     return comments
 
@@ -66,12 +67,9 @@ def get_route_data(url):
     # extract description
     desc_data = soup.find('table', class_='description-details')
     rows = desc_data.find_all('tr')[:3]
-    climb_data = rows[0].find_all('td')[1].text.strip().split(', ')
+    climb_data = rows[0].find_all('td')[1].text.strip()
     page_views = rows[2].find_all('td')[1].text.strip().replace('\n', '').replace('·', '').replace(' ', '').split('total')
     # extract type, height, naum_pitches, first ascenters, and page views (total / monthly)
-    type_ = climb_data[0]
-    height = climb_data[1]
-    num_pitches = climb_data[2] if len(climb_data) == 3 else 1
     FA = rows[1].find_all('td')[1].text.strip()
     page_views_total = page_views[0]
     page_views_month = page_views[1].split('/')[0]
@@ -86,8 +84,7 @@ def get_route_data(url):
     # return data as a dictionary
     data =  {'route_id': route_id, 'route_name': route_name, 
             'route_grade': route_grade, 'avg_rating': avg_rating, 
-            'num_ratings': num_ratings, 'type': type_, 
-            'height': height, 'num_pitches': num_pitches, 
+            'num_ratings': num_ratings, 'climb_data': climb_data, 
             'FA': FA, 'page_views_total': page_views_total, 
             'page_views_month': page_views_month, 'route_comments': comments}
     data.update(mapping)
