@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
+from collections import Counter
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+import string
 
 def pickle_dump(obj, filename):
     with open('data/' + filename + '.pickle', 'wb') as f:
@@ -47,4 +50,34 @@ def descriptive_stats(df):
 
     # Adjust layout
     plt.tight_layout()
+    plt.show()
+
+
+
+# Function to remove punctuation from each word
+def remove_punctuation(text):
+    return text.translate(str.maketrans('', '', string.punctuation))
+
+def word_freq_graph(all_text, top_n, title):
+    # Removing punctuation and then splitting the text into words
+    cleaned_words = [remove_punctuation(word).lower() for word in all_text.split() if remove_punctuation(word).lower() not in ENGLISH_STOP_WORDS]
+
+    cleaned_words = [word for word in cleaned_words if word.strip()]
+    # Recounting word frequencies with cleaned words
+    cleaned_word_freq = Counter(cleaned_words)
+
+    # Sorting words by frequency in descending order
+    sorted_cleaned_word_freq = dict(sorted(cleaned_word_freq.items(), key=lambda item: item[1], reverse=True))
+
+    # Selecting the top N words for the graph to avoid clutter
+    top_cleaned_words = list(sorted_cleaned_word_freq.keys())[:top_n]
+    top_cleaned_freqs = list(sorted_cleaned_word_freq.values())[:top_n]
+
+    # Plotting the cleaned graph
+    plt.figure(figsize=(10, 6))
+    plt.bar(top_cleaned_words, top_cleaned_freqs)
+    plt.xlabel('Words')
+    plt.ylabel('Frequency')
+    plt.xticks(rotation=90)
+    plt.title(title)
     plt.show()
