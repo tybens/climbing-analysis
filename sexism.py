@@ -19,6 +19,6 @@ def detect_sexism(body):
         prediction = None
     return prediction
 
-sexism = df.body.sample(1000).progress_apply(lambda x: detect_sexism(x))
+sexism = df.body.progress_apply(lambda x: detect_sexism(x))
 
 sexism.to_csv('data/forum/sexism.csv')

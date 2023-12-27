@@ -38,3 +38,11 @@ Plans to fine-tune an LLM for a climbing Q&A bot.
 ## Contributions
 
 Feel free to fork, submit pull requests, or open issues to enhance the project.
+
+## Setup on Adroit
+
+```Bash
+module load anaconda3/2023.3
+conda activate ./envs
+```
+
