@@ -1,4 +1,4 @@
-# Social Climbing: NLP Analysis on Climbing History
+# Climbing Through Time: A Forum-Based Exploration of Evolving Rock Climbing Practices and Attitudes
 
 _By Tyler Benson, Class of 2024_  
 **Advisor:** Prof. Christiane Fellbaum
